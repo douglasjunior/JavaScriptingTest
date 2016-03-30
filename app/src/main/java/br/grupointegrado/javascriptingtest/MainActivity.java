@@ -11,7 +11,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import japa.parser.JavaParser;
-import japa.parser.ParseException;
 import japa.parser.ast.expr.BinaryExpr;
 import japa.parser.ast.expr.IntegerLiteralExpr;
 import japa.parser.ast.expr.MethodCallExpr;
@@ -43,50 +42,61 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void executarScript() {
         try {
-            String clock = "{\n" +
+            String block = "{" +
                     "teste();\n" +
-                    "for (int i = 0; i <= 10; i++)  \n" +
+                    "for (int i = 0; i < 10; i++) { \n" +
                     "   teste2();\n" +
-                    "\n" +
+                    "}\n" +
+                    "teste3();" +
                     "}";
 
-            BlockStmt b = JavaParser.parseBlock(clock);
+            BlockStmt b = JavaParser.parseBlock(block);
             System.out.println("Statments: " + b.getStmts().size());
             System.out.println("--------");
             executeBlock(b);
-        } catch (ParseException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     private void executeBlock(BlockStmt b) {
+        // percorre todas as instruções de código recebidas
         for (Statement st : b.getStmts()) {
-            //System.out.println(st.getClass());
+            // se for do tipo Espressão
             if (st instanceof ExpressionStmt) {
                 ExpressionStmt es = (ExpressionStmt) st;
-                if (es.getExpression() instanceof MethodCallExpr) {
-                    executeMethod((MethodCallExpr) es.getExpression());
-                }
-            } else if (st instanceof ForStmt) {
-                ForStmt fs = (ForStmt) st;
-                if (fs.getCompare() instanceof BinaryExpr) {
-                    BinaryExpr compare = (BinaryExpr) fs.getCompare();
-                    if (compare.getRight() instanceof IntegerLiteralExpr) {
-                        IntegerLiteralExpr it = (IntegerLiteralExpr) compare.getRight();
-                        BinaryExpr.Operator op = compare.getOperator();
-                        for (int i = 0; compareOperator(i, op, it); i++) {
-                            if (fs.getBody() instanceof BlockStmt) {
-                                executeBlock((BlockStmt) fs.getBody());
-                            } else if (fs.getBody() instanceof ExpressionStmt) {
-                                ExpressionStmt es = (ExpressionStmt) fs.getBody();
-                                if (es.getExpression() instanceof MethodCallExpr) {
-                                    executeMethod((MethodCallExpr) es.getExpression());
+                executeMethod(es);
+            } else
+                // se for do tipo For
+                if (st instanceof ForStmt) {
+                    ForStmt fs = (ForStmt) st;
+                    // verifica o treço de comparação: for (int i = 0; <comparação> ; i++)
+                    if (fs.getCompare() instanceof BinaryExpr) {
+                        BinaryExpr compare = (BinaryExpr) fs.getCompare();
+                        // verifica se a comparação está no formato correto: for(int i = 0; i < [inteiro]; i++)
+                        if (compare.getRight() instanceof IntegerLiteralExpr) {
+                            IntegerLiteralExpr it = (IntegerLiteralExpr) compare.getRight();
+                            BinaryExpr.Operator op = compare.getOperator();
+                            // executa o corpo do For de acordo com a quantidade de vezes
+                            for (int i = 0; compareOperator(i, op, it); i++) {
+                                if (fs.getBody() instanceof BlockStmt) {
+                                    executeBlock((BlockStmt) fs.getBody());
+                                } else if (fs.getBody() instanceof ExpressionStmt) {
+                                    ExpressionStmt es = (ExpressionStmt) fs.getBody();
+                                    executeMethod(es);
+                                } else {
+                                    throw new IllegalArgumentException("Conteúdo do laço For incorreto: " + fs.getBody());
                                 }
                             }
+                        } else {
+                            throw new IllegalArgumentException("Comparação incrorreta, esperado número inteiro, recebido: " + compare.getRight());
                         }
+                    } else {
+                        throw new IllegalArgumentException("Comparação incrorreta: " + fs.getCompare());
                     }
+                } else {
+                    throw new IllegalArgumentException("Expressão incrorreta, esperado chamada de método ou laço For: " + st);
                 }
-            }
         }
     }
 
@@ -100,16 +110,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         throw new IllegalArgumentException("Operador desconhecido: " + op);
     }
 
-    private void executeMethod(MethodCallExpr mt) {
-        try {
-            Method m = MainActivity.class.getDeclaredMethod(mt.getName());
-            m.invoke(this);
-        } catch (NoSuchMethodException e) {
-            e.printStackTrace();
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
+    private void executeMethod(ExpressionStmt es) {
+        if (es.getExpression() instanceof MethodCallExpr) {
+            MethodCallExpr mt = (MethodCallExpr) es.getExpression();
+            try {
+                Method m = MainActivity.class.getDeclaredMethod(mt.getName());
+                m.invoke(this);
+            } catch (NoSuchMethodException e) {
+                throw new IllegalArgumentException("Método não encontrado: " + mt);
+            } catch (InvocationTargetException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        } else {
+            throw new IllegalArgumentException("Expressão incrorreta, esperado chamada de método, recebido: " + es.getExpression());
         }
     }
 
