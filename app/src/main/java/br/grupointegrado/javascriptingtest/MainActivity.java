@@ -17,6 +17,7 @@ import japa.parser.ast.expr.MethodCallExpr;
 import japa.parser.ast.stmt.BlockStmt;
 import japa.parser.ast.stmt.ExpressionStmt;
 import japa.parser.ast.stmt.ForStmt;
+import japa.parser.ast.stmt.IfStmt;
 import japa.parser.ast.stmt.Statement;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
@@ -44,10 +45,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         try {
             String block = "{" +
                     "teste();\n" +
-                    "for (int i = 0; i < 10; i++) { \n" +
+                    "for (int i = 0; i < 10.5; i++) { \n" +
                     "   teste2();\n" +
                     "}\n" +
-                    "teste3();" +
+                    "if (isTrue()) { \n" +
+                    "   teste3();\n" +
+                    "}\n" +
+                    "invalido();" +
                     "}";
 
             BlockStmt b = JavaParser.parseBlock(block);
@@ -65,38 +69,49 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             // se for do tipo Espressão
             if (st instanceof ExpressionStmt) {
                 ExpressionStmt es = (ExpressionStmt) st;
-                executeMethod(es);
-            } else
-                // se for do tipo For
-                if (st instanceof ForStmt) {
-                    ForStmt fs = (ForStmt) st;
-                    // verifica o treço de comparação: for (int i = 0; <comparação> ; i++)
-                    if (fs.getCompare() instanceof BinaryExpr) {
-                        BinaryExpr compare = (BinaryExpr) fs.getCompare();
-                        // verifica se a comparação está no formato correto: for(int i = 0; i < [inteiro]; i++)
-                        if (compare.getRight() instanceof IntegerLiteralExpr) {
-                            IntegerLiteralExpr it = (IntegerLiteralExpr) compare.getRight();
-                            BinaryExpr.Operator op = compare.getOperator();
-                            // executa o corpo do For de acordo com a quantidade de vezes
-                            for (int i = 0; compareOperator(i, op, it); i++) {
-                                if (fs.getBody() instanceof BlockStmt) {
-                                    executeBlock((BlockStmt) fs.getBody());
-                                } else if (fs.getBody() instanceof ExpressionStmt) {
-                                    ExpressionStmt es = (ExpressionStmt) fs.getBody();
-                                    executeMethod(es);
-                                } else {
-                                    throw new IllegalArgumentException("Conteúdo do laço For incorreto: " + fs.getBody());
-                                }
-                            }
-                        } else {
-                            throw new IllegalArgumentException("Comparação incrorreta, esperado número inteiro, recebido: " + compare.getRight());
-                        }
+                executeVoidMethod(es);
+            }// se for um laço do tipo For
+            else if (st instanceof ForStmt) {
+                ForStmt fs = (ForStmt) st;
+                executeFor(fs);
+            }
+            // se for uma condição do tipo If
+            else if (st instanceof IfStmt) {
+                IfStmt is = (IfStmt) st;
+                executeIf(is);
+            } else {
+                throw new IllegalArgumentException("Expressão incrorreta, esperado chamada de método ou laço For: " + st);
+            }
+        }
+    }
+
+    private void executeIf(IfStmt is) {
+
+    }
+
+    private void executeFor(ForStmt fs) {
+        // verifica o treço de comparação: for (int i = 0; <comparação> ; i++)
+        if (fs.getCompare() instanceof BinaryExpr) {
+            BinaryExpr compare = (BinaryExpr) fs.getCompare();
+            // verifica se a comparação está no formato correto: for(int i = 0; i < [inteiro]; i++)
+            if (compare.getRight() instanceof IntegerLiteralExpr) {
+                IntegerLiteralExpr it = (IntegerLiteralExpr) compare.getRight();
+                BinaryExpr.Operator op = compare.getOperator();
+                // executa o corpo do For de acordo com a quantidade de vezes
+                for (int i = 0; compareOperator(i, op, it); i++) {
+                    if (fs.getBody() instanceof BlockStmt) {
+                        executeBlock((BlockStmt) fs.getBody());
+                    } else if (fs.getBody() instanceof ExpressionStmt) {
+                        executeVoidMethod((ExpressionStmt) fs.getBody());
                     } else {
-                        throw new IllegalArgumentException("Comparação incrorreta: " + fs.getCompare());
+                        throw new IllegalArgumentException("Conteúdo do laço For incorreto: " + fs.getBody());
                     }
-                } else {
-                    throw new IllegalArgumentException("Expressão incrorreta, esperado chamada de método ou laço For: " + st);
                 }
+            } else {
+                throw new IllegalArgumentException("Comparação incrorreta, esperado número inteiro, recebido: " + compare.getRight());
+            }
+        } else {
+            throw new IllegalArgumentException("Comparação incrorreta: " + fs.getCompare());
         }
     }
 
@@ -110,7 +125,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         throw new IllegalArgumentException("Operador desconhecido: " + op);
     }
 
-    private void executeMethod(ExpressionStmt es) {
+    private void executeVoidMethod(ExpressionStmt es) {
         if (es.getExpression() instanceof MethodCallExpr) {
             MethodCallExpr mt = (MethodCallExpr) es.getExpression();
             try {
@@ -129,10 +144,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public void teste() {
-        System.out.println("chamou método test()");
+        System.out.println("chamou método teste()");
     }
 
     public void teste2() {
-        System.out.println("chamou método test2()");
+        System.out.println("chamou método teste2()");
+    }
+
+    public void teste3() {
+        System.out.println("chamou método teste3()");
+    }
+
+    public boolean isTrue() {
+        return true;
     }
 }
